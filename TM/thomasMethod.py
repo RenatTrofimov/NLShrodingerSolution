@@ -1,7 +1,7 @@
 import numpy as np
 
 # Function for TMDA Algorithm
-def thomas(a,b,c,d, type = 'float64'):
+def thomas(a,b,c,d, type = np.dtype(float)):
     """ A is the tridiagnonal coefficient matrix and d is the RHS matrix"""
     N = len(a)
     cp = np.zeros(N,dtype=type) # store tranformed c or c'
