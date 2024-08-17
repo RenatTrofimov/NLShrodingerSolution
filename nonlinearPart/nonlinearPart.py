@@ -1,18 +1,23 @@
 from scipy import integrate 
-from numpy import sin, cos, exp, pi
+from numpy import sin, cos, exp, pi, sqrt
 from scipy.special import gamma, factorial
 import numpy as np
-def get(U):
-    effectiveEq(U, 10, 10)
+def getNonLinearPart(U):
+    return effectiveEq(U, 10, 10)
 
-def alpha_sq(s,q):
-    return .01
-
-def b_sq(s,q, max_q):
+def b_sq(s,q, max_q, max_s):
     tempeture = 1.0
-    gamma_0 = 2.7
-    q_s = np.arange(max_q, dtype = np.float)
-    
+    gamma_0 = 2.7*1.6e-9
+    q_s = np.arange(max_q)
+    def alpha_sq(s,q):
+        dx = 3*1.42/2
+        plank = 1.6e-25
+        m = max_s
+        a = dx/plank
+        def eps(p_x):
+            return gamma_0*sqrt(1+4*cos(a*p_x)*cos(pi*s/m)+4*cos(pi*s/m)**2)*(p_x*q*dx/plank)
+        
+        return dx/(pi*plank) * integrate.quad(eps, -pi*plank/dx, pi*plank/dx)[0]
     def up(r): 
         return cos(q*r)*down(r)
     def down(r):
@@ -32,6 +37,7 @@ def effectiveEq(U, q_max, s_max):
     answ = 0
     for _q in q:
         for _s in s:
-            answ+=sumPart(_q,U)*b_sq(_s, _q, q_max)
+            answ+=sumPart(_q,U)*b_sq(_s, _q, q_max, s_max)
     return answ
     
+print("{:.10E}".format(getNonLinearPart(1j)))
