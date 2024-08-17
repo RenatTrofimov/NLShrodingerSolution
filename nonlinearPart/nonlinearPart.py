@@ -5,12 +5,16 @@ def get():
     1.
 
 def alpha_sq(s,q):
-    return s*q
+    return 1
 
-def b_sq(s,q):
+def b_sq(s,q, max_q):
     tempeture = 1.0
     gamma_0 = 2.7
-    q_s = np.arange(1,10)
-    return -q * (alpha_sq(s,q)/gamma_0) * (integrate.quad(lambda r: cos(q*r)*exp(-np.sum(cos(q_s*r)*alpha_sq(s,q_s))/tempeture), -pi, pi)) #/ (integrate.quad(lambda r: exp(-np.sum(cos(q_s*r)*alpha_sq(s,q_s))/tempeture), -pi, pi))
+    q_s = np.arange(max_q, dtype = np.float)
     
-print (b_sq(1.,1.))
+    def up(r): 
+        return cos(q*r)*down(r)
+    def down(r):
+        return exp(-np.sum(cos(r*q_s))/tempeture)
+    
+    return -q * (alpha_sq(s,q)/gamma_0) * (integrate.quad(up, -pi, pi)[0]) / (integrate.quad(down, -pi, pi))[0]
