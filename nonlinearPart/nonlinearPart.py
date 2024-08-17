@@ -6,7 +6,7 @@ def get():
     1.
 
 def alpha_sq(s,q):
-    return 1
+    return .01
 
 def b_sq(s,q, max_q):
     tempeture = 1.0
@@ -26,3 +26,12 @@ def sumPart(q, U):
     down = 2**(2*r+1)*gamma(r+1)*gamma(r+2)
     return np.sum(up/down)
 
+def effectiveEq(U, q_max, s_max):
+    q = np.arange(q_max)
+    s = np.arange(s_max)
+    answ = 0
+    for _q in q:
+        for _s in s:
+            answ+=sumPart(_q,U)*b_sq(_s, _q, q_max)
+    return answ
+    
