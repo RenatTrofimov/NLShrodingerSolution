@@ -40,4 +40,3 @@ def effectiveEq(U, q_max, s_max):
             answ+=sumPart(_q,U)*b_sq(_s, _q, q_max, s_max)
     return answ
     
-print("{:.10E}".format(getNonLinearPart(1j)))
