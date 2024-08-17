@@ -1,5 +1,6 @@
 from scipy import integrate 
 from numpy import sin, cos, exp, pi
+from scipy.special import gamma, factorial
 import numpy as np
 def get():
     1.
@@ -18,3 +19,10 @@ def b_sq(s,q, max_q):
         return exp(-np.sum(cos(r*q_s))/tempeture)
     
     return -q * (alpha_sq(s,q)/gamma_0) * (integrate.quad(up, -pi, pi)[0]) / (integrate.quad(down, -pi, pi))[0]
+
+def sumPart(q, U):
+    r = np.arange(10)
+    up = ((-1)**r)*(q**(2*r+1))*np.absolute(U)**(2*r)
+    down = 2**(2*r+1)*gamma(r+1)*gamma(r+2)
+    return np.sum(up/down)
+
