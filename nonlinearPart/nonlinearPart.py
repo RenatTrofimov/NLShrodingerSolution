@@ -2,8 +2,8 @@ from scipy import integrate
 from numpy import sin, cos, exp, pi
 from scipy.special import gamma, factorial
 import numpy as np
-def get():
-    1.
+def get(U):
+    effectiveEq(U, 10, 10)
 
 def alpha_sq(s,q):
     return .01
