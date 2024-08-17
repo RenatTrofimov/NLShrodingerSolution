@@ -1,4 +1,5 @@
 from TM.thomasMethod import thomas
+from nonlinearPart.nonlinearPart import get
 import numpy as np
 # Main Program
 #step 1: Create Coefficient and LHS matrices store (a,b,c,d) seperately
