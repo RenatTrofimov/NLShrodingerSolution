@@ -15,7 +15,7 @@ def b_sq(s,q, max_q, max_s):
         m = max_s
         a = dx/plank
         def eps(p_x):
-            return gamma_0*sqrt(1+4*cos(a*p_x)*cos(pi*s/m)+4*cos(pi*s/m)**2)*(p_x*q*dx/plank)
+            return gamma_0*sqrt(1+4*cos(a*p_x)*cos(pi*s/m)+4*cos(pi*s/m)**2)*cos(p_x*q*dx/plank)
         
         return dx/(pi*plank) * integrate.quad(eps, -pi*plank/dx, pi*plank/dx)[0]
     def up(r): 
@@ -39,4 +39,3 @@ def effectiveEq(U, q_max, s_max):
         for _s in s:
             answ+=sumPart(_q,U)*b_sq(_s, _q, q_max, s_max)
     return answ
-    
