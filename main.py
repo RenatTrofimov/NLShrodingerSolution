@@ -31,8 +31,8 @@ for i in range(500):
     
     Vp = np.copy(Vn)
     
-    Xn = np.insert(Xc[:-1], 0, 0)
-    Xp = np.append(Xc[1:], 0)
+    Xp = np.insert(Xc[:-1], 0, 0)
+    Xn = np.append(Xc[1:], 0)
     
     Vn = Vp - 2*np.absolute(Xc)
     
