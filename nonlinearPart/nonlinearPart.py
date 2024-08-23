@@ -41,10 +41,10 @@ def effectiveEq(U, q_max, s_max):
             answ+=sumPart(_q,U)*b_sq(_s, _q, q_max, s_max)
     return answ
 
-mm = 7
-kk = 10
-W0 = 4.3e-12
-j = 1/10.6e-15
+mm = np.float64(7)
+kk = np.float64(10)
+W0 = np.float64(4.3e-12)
+j = np.float64(1/10.6e-15)
 def b(i):
     return cos(pi*i/mm)
 def ee(x, i): 
@@ -63,7 +63,7 @@ def FF(i,k):
 
 def GG():
     Sum = 0
-    for _i in prange(mm):
-        for _k in prange(kk):
+    for _i in np.arange(mm):
+        for _k in np.arange(kk):
             Sum += FF(_i,_k)
     print(Sum)
