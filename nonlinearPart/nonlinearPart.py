@@ -1,6 +1,7 @@
 from scipy import integrate 
 from numpy import sin, cos, exp, pi, sqrt
 from scipy.special import gamma, factorial
+from numba import njit, prange
 import numpy as np
 def getNonLinearPart(U):
     return effectiveEq(U, 10, 10)
@@ -39,3 +40,30 @@ def effectiveEq(U, q_max, s_max):
         for _s in s:
             answ+=sumPart(_q,U)*b_sq(_s, _q, q_max, s_max)
     return answ
+
+mm = 7
+kk = 10
+W0 = 4.3e-12
+j = 1/10.6e-15
+def b(i):
+    return cos(pi*i/mm)
+def ee(x, i): 
+    return W0 * (1 + 4*cos(x)*b(i)+4*b(i)*b(i))**0.5
+def A1(i,k):
+    return integrate.quad(lambda x: ee(x, i)*cos(k*x), -pi, pi)[0]/pi
+
+def tetta(x,i,k):    
+    def up():
+        return exp(-(j*A1(i,0)/2+np.sum([j*A1(i,_k)*cos(_k*x) for _k in np.arange(1, kk)])))
+    return up()/(1+up())
+def FF(i,k):
+    def func(i,k):
+        return integrate.quad(lambda x :tetta(x,i,k)*cos(k*x),-pi,pi)[0]
+    return -(k*A1(i,k)/W0)*func(i,k)/np.sum([func(_i,k) for _i in np.arange(1, mm)])
+
+def GG():
+    Sum = 0
+    for _i in prange(mm):
+        for _k in prange(kk):
+            Sum += FF(_i,_k)
+    print(Sum)
