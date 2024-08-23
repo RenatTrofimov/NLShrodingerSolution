@@ -16,6 +16,10 @@ Xc = np.exp(-(x-3)**2)
 Xn = np.insert(Xc[:-1], 0, 0)
 Xp = np.append(Xc[1:], 0)
 
+#plt.plot(Xc)
+#plt.plot(Xn)
+#plt.plot(Xp)
+#plt.show()
 Vp = np.zeros(len)
 Vn = np.absolute(Xc)
 
@@ -31,15 +35,15 @@ for i in range(500):
     
     Vp = np.copy(Vn)
     
-    Xp = np.insert(Xc[:-1], 0, 0)
-    Xn = np.append(Xc[1:], 0)
+    Xn = np.insert(Xc[:-1], 0, 0)
+    Xp = np.append(Xc[1:], 0)
     
     Vn = Vp - 2*np.absolute(Xc)
     
     a = 1/hx**2*np.ones(len)
     b = (1j/ht - 1/hx**2 - lamda*Vn/2)
     c = 1/hx**2*np.ones(len)
-    d = -(1j/ht - 1/hx**2 - lamda*Vn/2)*Xc - Xn/hx**2 - Xp/hx**2
+    d = (1j/ht + 1/hx**2 + lamda*Vn/2)*Xc - Xn/hx**2 - Xp/hx**2
     
 
 
