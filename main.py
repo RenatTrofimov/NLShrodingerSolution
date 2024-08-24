@@ -2,7 +2,7 @@ from TM.thomasMethod import thomas
 #from nonlinearPart.nonlinearPart import get
 import numpy as np
 from matplotlib import pyplot as plt
-
+from matplotlib.animation import FuncAnimation
 # Main Program
 #step 1: Create Coefficient and LHS matrices store (a,b,c,d) seperately
 len = 100
@@ -21,16 +21,22 @@ Xp = np.append(Xc[1:], 0)
 #plt.plot(Xp)
 #plt.show()
 Vp = np.zeros(len)
-Vn = np.absolute(Xc)
-
-a = 1/hx**2*np.ones(len)
+Vn = np.absolute(Xc)*np.absolute(Xc)
+k = 0.5/hx**2
+a = k*np.ones(len)
 b = (1j/ht - 1/hx**2 - lamda*Vn/2)
-c = 1/hx**2*np.ones(len)
-d = -(1j/ht - 1/hx**2 - lamda*Vn/2)*Xc - Xn/hx**2 - Xp/hx**2
+c = k*np.ones(len)
+d = -(1j/ht - 1/hx**2 - lamda*Vn/2)*Xc - Xn*k - Xp*k
 
 
 
-for i in range(500):
+    
+
+fig, ax = plt.subplots()
+
+line, = ax.plot(x, Xc)
+def update_cos(frame, line, x):
+    global a,b,c,d, Xc, Xn, Xp,Vn,Vp, hx, ht
     Xc = thomas(a,b,c,d, np.dtype(np.complex128))
     
     Vp = np.copy(Vn)
@@ -38,17 +44,26 @@ for i in range(500):
     Xn = np.insert(Xc[:-1], 0, 0)
     Xp = np.append(Xc[1:], 0)
     
-    Vn = Vp - 2*np.absolute(Xc)
-    
-    a = 1/hx**2*np.ones(len)
+    Vn = -Vp + 2*np.absolute(Xc)*np.absolute(Xc)
+    k = 0.5/hx**2
+    a = k*np.ones(len)
     b = (1j/ht - 1/hx**2 - lamda*Vn/2)
-    c = 1/hx**2*np.ones(len)
-    d = (1j/ht + 1/hx**2 + lamda*Vn/2)*Xc - Xn/hx**2 - Xp/hx**2
-    
+    c = k*np.ones(len)
+    d = (1j/ht + 1/hx**2 + lamda*Vn/2)*Xc - Xn*k - Xp*k
+    print(sum(np.absolute(Xc)*np.absolute(Xc)))
+    line.set_ydata( np.absolute(Xc)*np.absolute(Xc) )
+    return [line]
+phasa = np.arange(0, 4*np.pi, 0.01)
+animation = FuncAnimation(
+    fig,                # фигура, где отображается анимация
+    func=update_cos,    # функция обновления текущего кадра
+    frames=phasa,       # параметр, меняющийся от кадра к кадру
+    fargs=(line, x),    # дополнительные параметры для функции update_cos
+    interval=1,       # задержка между кадрами в мс
+    blit=True,          # использовать ли двойную буферизацию
+    repeat=False)   
 
-
-
-
+plt.show()
 
 plt.plot(Xc)
 plt.show()
