@@ -45,20 +45,28 @@ mm = np.float64(7)
 kk = np.float64(10)
 W0 = np.float64(4.3e-12)
 j = np.float64(1/10.6e-15)
+_A1 = np.zeros(int(mm*kk))
+_func = np.zeros(int(mm*kk))
+_up = np.zeros(int(mm*kk))
+
 def b(i):
     return cos(pi*i/mm)
 def ee(x, i): 
-    return W0 * (1 + 4*cos(x)*b(i)+4*b(i)*b(i))**0.5
+    return W0 * sqrt(1.0 + 4.0*cos(x)*b(i)+4.0*b(i)*b(i))
 def A1(i,k):
-    return integrate.quad(lambda x: ee(x, i)*cos(k*x), -pi, pi)[0]/pi
+    if _A1[int(i*mm + k)] == 0.0:
+        _A1[int(i*mm + k)] = integrate.quad(lambda x: ee(x, i)*cos(k*x), -pi, pi)[0]/pi
+    return _A1[int(i*mm + k)] 
 
 def tetta(x,i,k):    
-    def up():
-        return exp(-(j*A1(i,0)/2+np.sum([j*A1(i,_k)*cos(_k*x) for _k in np.arange(1, kk)])))
-    return up()/(1+up())
+    if _up[int(i*mm + k)] == 0.0:
+        _up[int(i*mm + k)] = exp(-(j*A1(i,0)/2+np.sum([j*A1(i,_k)*cos(_k*x) for _k in np.arange(1, kk)])))
+    return _up[int(i*mm + k)]/(1+_up[int(i*mm + k)])
 def FF(i,k):
     def func(i,k):
-        return integrate.quad(lambda x :tetta(x,i,k)*cos(k*x),-pi,pi)[0]
+        if _func[int(i*mm + k)] == 0.0:
+            _func[int(i*mm + k)] = integrate.quad(lambda x :tetta(x,i,k)*cos(k*x),-pi,pi)[0]
+        return _func[int(i*mm + k)]
     return -(k*A1(i,k)/W0)*func(i,k)/np.sum([func(_i,k) for _i in np.arange(1, mm)])
 
 def GG():
@@ -67,3 +75,4 @@ def GG():
         for _k in np.arange(kk):
             Sum += FF(_i,_k)
     print(Sum)
+GG()
