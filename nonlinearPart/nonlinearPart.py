@@ -2,6 +2,9 @@ from scipy import integrate
 from numpy import sin, cos, exp, pi, sqrt
 from scipy.special import gamma, factorial
 import numpy as np
+
+def get():
+    return 0
 def getNonLinearPart(U):
     return effectiveEq(U, 10, 10)
 
