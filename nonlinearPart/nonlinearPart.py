@@ -1,41 +1,49 @@
 from scipy import integrate 
 from numpy import sin, cos, exp, pi, sqrt
 from scipy.special import gamma, factorial
+from numba import njit, prange
 import numpy as np
-def getNonLinearPart(U):
-    return effectiveEq(U, 10, 10)
+def get(U):
+    return GG(U)
 
-def b_sq(s,q, max_q, max_s):
-    tempeture = 1.0
-    gamma_0 = 2.7*1.6e-9
-    q_s = np.arange(max_q)
-    def alpha_sq(s,q):
-        dx = 3*1.42/2
-        plank = 1.6e-25
-        m = max_s
-        a = dx/plank
-        def eps(p_x):
-            return gamma_0*sqrt(1+4*cos(a*p_x)*cos(pi*s/m)+4*cos(pi*s/m)**2)*cos(p_x*q*dx/plank)
-        
-        return dx/(pi*plank) * integrate.quad(eps, -pi*plank/dx, pi*plank/dx)[0]
-    def up(r): 
-        return cos(q*r)*down(r)
-    def down(r):
-        return exp(-np.sum(cos(r*q_s))/tempeture)
-    
-    return -q * (alpha_sq(s,q)/gamma_0) * (integrate.quad(up, -pi, pi)[0]) / (integrate.quad(down, -pi, pi))[0]
 
-def sumPart(q, U):
-    r = np.arange(10)
-    up = ((-1)**r)*(q**(2*r+1))*np.absolute(U)**(2*r)
-    down = 2**(2*r+1)*gamma(r+1)*gamma(r+2)
-    return np.sum(up/down)
+def GG(U):
+    mm = np.float64(7)
+    kk = np.float64(9)
+    W0 = np.float64(4.3e-12)
+    j = np.float64(1/10.6e-15)
+    _FF = np.zeros(int(mm*kk))
+    _A1 = np.zeros(int(mm*kk))
 
-def effectiveEq(U, q_max, s_max):
-    q = np.arange(q_max)
-    s = np.arange(s_max)
-    answ = 0
-    for _q in q:
-        for _s in s:
-            answ+=sumPart(_q,U)*b_sq(_s, _q, q_max, s_max)
-    return answ
+    def gammaPart(q, U):
+        r = np.arange(10)
+        up = ((-1)**r)*(q**(2*r+1))
+        down = 2**(2*r+1)*gamma(r+1)*gamma(r+2)
+        return np.sum(up*np.absolute(U)**(2*r)/down)
+
+
+    def b(i):
+        return cos(pi*i/mm)
+    def ee(x, i): 
+        return W0 * sqrt(1.0 + 4.0*cos(x)*b(i)+4.0*b(i)*b(i))
+    def A1(i,k):
+        if _A1[int(i*kk + k)] == 0.0:
+            _A1[int(i*kk + k)] = integrate.quad(lambda x: ee(x, i)*cos(k*x), -pi, pi)[0]/pi
+        return _A1[int(i*kk + k)] 
+    def tetta(x,i,k):    
+        return exp(-(j*A1(i,0)/2+np.sum([j*A1(i,_k)*cos(_k*x) for _k in np.arange(1, kk)])))/(1+ exp(-(j*A1(i,0)/2+np.sum([j*A1(i,_k)*cos(_k*x) for _k in np.arange(1, kk)]))))
+
+    def FF(i,k):
+        def func(i,k):
+            return integrate.quad(lambda x :tetta(x,i,k)*cos(k*x),-pi,pi)[0]
+        def func2(i,k):    
+            return integrate.quad(lambda x :tetta(x,i,k),-pi,pi)[0]
+        if _FF[int(i*kk + k)] == 0.0:
+            _FF[int(i*kk + k)] = -k*A1(i,k)*func(i,k)/np.sum([func2(_i,k) for _i in np.arange(1, mm)])/W0
+
+        return _FF[int(i*kk + k)]
+    _sum = 0
+    for _k in np.arange(kk):
+        _sum += gammaPart(_k, U)*np.sum([FF(_i,_k) for _i in np.arange(1, mm)])
+        #print(_k, "-", _sum)
+    return _sum
