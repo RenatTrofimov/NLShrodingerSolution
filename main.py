@@ -28,7 +28,7 @@ b0 = np.ones(Xc.shape[0], dtype = np.complex64)
 c0 = np.ones(Xc.shape[0], dtype = np.complex64)
 
 a = (0.5*A/hx**2)*a0
-b = (B/ht - A/hx**2)*b0
+b = (B/ht - A/hx**2)*a0
 c = (0.5*A/hx**2)*c0
 d = Xc*(B/ht + A/hx**2) - C*Xc - 0.5*A*(Xn + Xp)
 
@@ -36,11 +36,11 @@ X = thomas(a,b,c,d, np.dtype(np.complex64))
 print("run")
 for i in range(10):
     
-    C = np.fromiter((get(_x) for _x in X), X.dtype, count=Xc.shape[0])
+    
     Xn = np.insert(X[:-1], 0, 0)
     Xp = np.append(X[1:], 0)
     
-    d = X*(B/ht + A/hx**2) - C*X - 0.5*A*(Xn + Xp)
+    d = X*(B/ht + A/hx**2) - np.fromiter((get(_x) for _x in X), X.dtype, count=X.shape[0])*Xc - 0.5*A*(Xn + Xp)
     
     X = thomas(a,b,c,d, np.dtype(np.complex64))
 
