@@ -16,7 +16,7 @@ def GG(U):
     _A1 = np.zeros(int(mm*kk))
 
     def gammaPart(q, U):
-        r = np.arange(10)
+        r = np.arange(5)
         up = ((-1)**r)*(q**(2*r+1))
         down = 2**(2*r+1)*gamma(r+1)*gamma(r+2)
         return np.sum(up*np.absolute(U)**(2*r)/down)
