@@ -5,14 +5,15 @@ from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
 # Main Program
 #step 1: Create Coefficient and LHS matrices store (a,b,c,d) seperately
-len = 100
+len = 250
 
-hx = 6/len
-ht = 0.1
+hx = 10/len
+ht = 0.0001
 lamda = 1.0
 
-x = np.arange(0,6,hx)
-Xc = np.exp(-(x-3)**2)
+x = np.arange(0,10,hx)
+k=1*np.pi
+Xc = np.exp(-(x-3)**2)*np.exp(1j*k*(x-3)) + np.exp(-(x-7)**2)*np.exp(-1j*k*(x-7))
 Xn = np.insert(Xc[:-1], 0, 0)
 Xp = np.append(Xc[1:], 0)
 
@@ -51,9 +52,9 @@ def update_cos(frame, line, x):
     c = k*np.ones(len)
     d = (1j/ht + 1/hx**2 + lamda*Vn/2)*Xc - Xn*k - Xp*k
     print(sum(np.absolute(Xc)*np.absolute(Xc)))
-    line.set_ydata( np.absolute(Xc)*np.absolute(Xc) )
+    line.set_ydata( np.absolute(Xc)**2 )
     return [line]
-phasa = np.arange(0, 4*np.pi, 0.01)
+phasa = np.arange(0, 100, 0.01)
 animation = FuncAnimation(
     fig,                # фигура, где отображается анимация
     func=update_cos,    # функция обновления текущего кадра
