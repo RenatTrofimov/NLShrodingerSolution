@@ -3,6 +3,7 @@ from TM.thomasMethod import thomas
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
+from scipy.linalg import solve_banded
 # Main Program
 #step 1: Create Coefficient and LHS matrices store (a,b,c,d) seperately
 len = 250
@@ -13,7 +14,7 @@ lamda = 1.0
 
 x = np.arange(0,10,hx)
 k=1*np.pi
-Xc = np.exp(-(x-3)**2)*np.exp(1j*k*(x-3)) + np.exp(-(x-7)**2)*np.exp(-1j*k*(x-7))
+Xc = np.exp(-(x-3)**2)*np.exp(1j*k*(x-3))
 Xn = np.insert(Xc[:-1], 0, 0)
 Xp = np.append(Xc[1:], 0)
 
@@ -27,19 +28,22 @@ k = 0.5/hx**2
 a = k*np.ones(len)
 b = (1j/ht - 1/hx**2 - lamda*Vn/2)
 c = k*np.ones(len)
-d = -(1j/ht - 1/hx**2 - lamda*Vn/2)*Xc - Xn*k - Xp*k
+d = (1j/ht + 1/hx**2 + lamda*Vn/2)*Xc - Xn*k - Xp*k
 
-
-
-    
+A = np.zeros(len)
+C = np.zeros(len)
+A[1:] = a[1:]
+C[:-1] = a[:-1]
+ab = np.array([A,b,C])
 
 fig, ax = plt.subplots()
 
 line, = ax.plot(x, Xc)
 def update_cos(frame, line, x):
     global a,b,c,d, Xc, Xn, Xp,Vn,Vp, hx, ht
+    global A,ab,C
     Xc = thomas(a,b,c,d, np.dtype(np.complex128))
-    
+    Xc1 = solve_banded((1, 1), ab, d)
     Vp = np.copy(Vn)
     
     Xn = np.insert(Xc[:-1], 0, 0)
@@ -51,8 +55,15 @@ def update_cos(frame, line, x):
     b = (1j/ht - 1/hx**2 - lamda*Vn/2)
     c = k*np.ones(len)
     d = (1j/ht + 1/hx**2 + lamda*Vn/2)*Xc - Xn*k - Xp*k
-    print(sum(np.absolute(Xc)*np.absolute(Xc)))
-    line.set_ydata( np.absolute(Xc)**2 )
+
+
+    A = np.zeros(len)
+    C = np.zeros(len)
+    A[1:] = a[1:]
+    C[:-1] = a[:-1]
+    ab = np.array([A,b,C])
+    print(sum(np.absolute(Xc)*np.absolute(Xc)) - sum(np.absolute(Xc1)*np.absolute(Xc1)))
+    line.set_ydata( np.absolute(Xc1)**2 )
     return [line]
 phasa = np.arange(0, 100, 0.01)
 animation = FuncAnimation(
