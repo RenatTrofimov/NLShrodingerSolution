@@ -14,7 +14,7 @@ def GG(U):
     j = np.float64(1/10.6e-15)
     _FF = np.zeros(int(mm*kk))
     _A1 = np.zeros(int(mm*kk))
-
+    _Gp = np.zeros(int(mm*kk))
     def gammaPart(q, U):
         r = np.arange(5)
         up = ((-1)**r)*(q**(2*r+1))
@@ -46,3 +46,4 @@ def GG(U):
         _sum += gammaPart(_k, U)*np.sum([FF(_i,_k) for _i in np.arange(1, mm)])
         #print(_k, "-", _sum)
     return _sum
+

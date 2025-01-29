@@ -1,45 +1,27 @@
 from TM.thomasMethod import thomas
 from nonlinearPart.nonlinearPart import get
 from matplotlib import pyplot as plt
+from scipy.linalg import solve_banded
 import numpy as np
 # Main Program
 #step 1: Create Coefficient and LHS matrices store (a,b,c,d) seperately
-hx = 0.06
+hx = 0.1
 ht = 0.01
-x = np.arange(0,6,hx)
-Xc = np.exp(-(x-3)**2)*np.exp(-1j*(x-3))
+x = np.arange(0,5,hx)
+Xc = np.exp(-(x-2)**2)*np.exp(1j*(x-2))
 Xn = np.insert(Xc[:-1], 0, 0)
 Xp = np.append(Xc[1:], 0)
 
-C = 0#np.fromiter((get(_x) for _x in Xc), Xc.dtype, count=Xc.shape[0])/2
-w0 = np.complex64(1e14) 
-w = np.complex64(5e14) 
-eps = np.complex64(4.0) 
-A = np.complex64(1.0)
+a = np.zeros(x.shape[0])
+c = np.zeros(x.shape[0])
+a[1:x.shape[0]-1] = a[1:x.shape[0]-1] + 1/(2*hx**2)
+c[:x.shape[0]-2] = c[:x.shape[0]-2] + 1/(2*hx**2)
+nnl = np.array([get(i) for i in Xc])
+b = Xc*(2j/ht + hx**(-2))-(Xn+Xp)/(2*hx**2) + Xc*nnl
 
-B = 2.0*1.0j*w*np.sqrt(eps)/w0
+ab = np.array([a, np.ones(x.shape[0])*(2j/hx - hx**(-2)), c])
 
+Xc = solve_banded((1, 1), ab, b)
 
-a0 = np.ones(Xc.shape[0], dtype = np.complex64)
-
-a = (0.5*A/hx**2)*a0
-b = (B/ht - A/hx**2)*a0 + C
-c = (0.5*A/hx**2)*a0
-d = Xc*(B/ht + A/hx**2) - C*Xc - 0.5*A*(Xn + Xp)
-
-X = thomas(a,b,c,d, np.dtype(np.complex64))
-
-for i in range(100):
-    
-    C = 0#np.fromiter((get(_x) for _x in X), X.dtype, count=X.shape[0])
-    Xn = np.insert(X[:-1], 0, 0)
-    Xp = np.append(X[1:], 0)
-    
-    b = (B/ht - A/hx**2)*a0 + C
-    d = X*(B/ht + A/hx**2) - C*X - 0.5*A*(Xn + Xp)
-    
-    X = thomas(a,b,c,d, np.dtype(np.complex64))
-    print(sum(np.abs(X)**2))
-plt.plot(x, X)
-plt.plot(x, Xc)
+plt.plot(x, np.abs(Xc)**2)
 plt.show()
