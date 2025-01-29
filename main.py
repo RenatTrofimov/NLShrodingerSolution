@@ -7,7 +7,7 @@ import numpy as np
 hx = 0.06
 ht = 0.01
 x = np.arange(0,6,hx)
-Xc = np.exp(-(x-3)**2)
+Xc = np.exp(-(x-3)**2)*np.exp(-1j*(x-3))
 Xn = np.insert(Xc[:-1], 0, 0)
 Xp = np.append(Xc[1:], 0)
 
@@ -17,21 +17,19 @@ w = np.complex64(5e14)
 eps = np.complex64(4.0) 
 A = np.complex64(1.0)
 
-B = 2.*1j*w*np.sqrt(eps)/w0
+B = 2.0*1.0j*w*np.sqrt(eps)/w0
 
 
 a0 = np.ones(Xc.shape[0], dtype = np.complex64)
-b0 = np.ones(Xc.shape[0], dtype = np.complex64)
-c0 = np.ones(Xc.shape[0], dtype = np.complex64)
 
 a = (0.5*A/hx**2)*a0
 b = (B/ht - A/hx**2)*a0 + C
-c = (0.5*A/hx**2)*c0
+c = (0.5*A/hx**2)*a0
 d = Xc*(B/ht + A/hx**2) - C*Xc - 0.5*A*(Xn + Xp)
 
 X = thomas(a,b,c,d, np.dtype(np.complex64))
 
-for i in range(10):
+for i in range(100):
     
     C = 0#np.fromiter((get(_x) for _x in X), X.dtype, count=X.shape[0])
     Xn = np.insert(X[:-1], 0, 0)
@@ -42,6 +40,6 @@ for i in range(10):
     
     X = thomas(a,b,c,d, np.dtype(np.complex64))
     print(sum(np.abs(X)**2))
-plt.plot(x, np.abs(X))
-plt.plot(x, np.abs(Xc))
+plt.plot(x, X)
+plt.plot(x, Xc)
 plt.show()
