@@ -20,7 +20,7 @@ def process(i):
 
 # Main Program
 #step 1: Create Coefficient and LHS matrices store (a,b,c,d) seperately
-hx = 0.01
+hx = 0.001
 ht = 0.001
 x = np.arange(0,5,hx, dtype=np.complex128)
 Xc = np.exp(-1*(x-2)**2)*np.exp(1j*(x-2))
@@ -36,23 +36,15 @@ ab = np.ones(x.shape[0], dtype=np.complex128)
 ab[1:-1] = ab[1:-1]*(10*2j/hx - hx**(-2))
 ab = np.array([a, ab, c], dtype=np.complex128)
 nnl = np.zeros(x.shape[0])
-###################################################################################
-pool_obj = multiprocessing.Pool()
-pool_indexes = np.zeros((256,2), dtype=np.int32)
-for index in range(256):
-	pool_indexes[index][0] = int(x.shape[0]/256)*index
-	pool_indexes[index][1] = int(x.shape[0]/256)*(index + 1) - 1
-pool_indexes[0][0] = 0
-pool_indexes[255][1] = x.shape[0] - 1
-print(pool_indexes)
-###################################################################################
+
 for j in range(10):
 	for i in range(1000):
-		#_NNP.getNNP(Xc, nnl)
+		_NNP.getNNP(Xc, nnl)
+		print("+")
 		#nnl = np.array([get(i) for i in Xc])
 		#pool_obj.map(execute,pool_indexes)
 		#nnl = Parallel(n_jobs=24)(delayed(process)(i) for i in range(pool_indexes))
-		b = Xc*(10*2j/ht + 1/(hx**2))-(Xn+Xp)/(2*hx**2)#+ Xc*nnl
+		b = Xc*(10*2j/ht + 1/(hx**2))-(Xn+Xp)/(2*hx**2)+ Xc*nnl
 		b[0] = b[-1] = 0
 	
 		Xc = solve_banded((1, 1), ab, b)
@@ -62,9 +54,7 @@ for j in range(10):
 	
 	plt.plot(x, np.abs(Xc**2))
 	print(j)
-######################################################################################
-pool_obj.close()
-######################################################################################
+
 
 plt.plot(x, np.abs(X0**2))
 
