@@ -87,7 +87,7 @@ class NonlinearPart():
 
 
 def Besse():
-	M = 400
+	M = 1000
 	xEnd = 10
 	tEnd = 5           
 	dt = 0.001         
@@ -134,7 +134,8 @@ def Besse():
 		for i in range(M):
 			V0[i] = np.abs(U0[i])**2
 			V1[i] = -V0[i] + 2 * np.abs(U0[i])**2
-			nlp.getNNP(np.copy(V1), V1)
+		nlp.getNNP(np.copy(V1), V1)
+		for i in range(M):
 			alfa_plus[i] = jj/r - 2 - dx**2 * V1[i]
 			alfa_minus[i] = -jj/r - 2 - dx**2 * V1[i]
 			A_plus[i, i] = alfa_plus[i]
