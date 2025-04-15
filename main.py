@@ -54,7 +54,7 @@ class NonlinearPart():
         	return self.W0 * sqrt(1.0 + 4.0*cos(x)*self.b(i)+4.0*self.b(i)*self.b(i))
 	def A1(self,  i,k):
         	if self._A1[int(i*self.kk + k)] == 0.0:
-        	    self._A1[int(i*self.kk + k)] = 
+        	    self._A1[int(i*self.kk + k)] = integrate.quad(lambda x: self.ee(x, i)*cos(k*x), -pi, pi, complex_func=True)[0]/pi
         	return self._A1[int(i*self.kk + k)]
 	def tetta(self, x,i,k):
         	return exp(-(self.j*self.A1(i,0)/2+np.sum([self.j*self.A1(i,_k)*cos(_k*x) for _k in np.arange(1, int(self.kk))])))/(1+ exp(-(self.j*self.A1(i,0)/2+np.sum([self.j*self.A1(i,_k)*cos(_k*x) for _k in np.arange(1, int(self.kk))]))))
