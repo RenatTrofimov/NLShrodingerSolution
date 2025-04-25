@@ -8,7 +8,7 @@ import multiprocessing
 import time
 
 class NNs_NonlinearPart():
-	def energy_spectrum(ksi, s):
+	def energy_spectrum(self, ksi, s):
 			return self.gamma0*sqrt(1 + 4*cos(ksi)*cos(pi*s/self.m) +4*cos(pi*s/self.m)*cos(pi*s/self.m) )
 	def __init__(self):
 		#CNT Constants and parameters:
@@ -26,14 +26,14 @@ class NNs_NonlinearPart():
 
 
 		#beam wave-vector: -------------------------------------------------------
-		self.omega=4e14 #%1e14;
+		self.omega=4e14 #%1e14
 		self.kappa=2*sqrt(self.rel_perm)*self.omega/self.omega0 # wave vector
 		self.l_max=5
 		self.N_garm = 9
 		self.g=0.25
 		self.E0 = 0.10e7 #% V/cm
-		self.E0 = 1*(self.E0)/300; #% SGS(E)
-		self.A0 = self.E0*abs(self.el)*self.a_CNT/(self.h1*self.omega); 
+		self.E0 = 1*(self.E0)/300 #% SGS(E)
+		self.A0 = self.E0*abs(self.el)*self.a_CNT/(self.h1*self.omega) 
 		self.steps = 10000
 		#Definitions of the arrays: ----------------------------------------------
 		self.Integral_1     = np.zeros((self.N_garm, self.m))
@@ -48,10 +48,10 @@ class NNs_NonlinearPart():
 		self.F = np.zeros((self.N_garm, self.m))
 		self.G = np.zeros((self.N_garm, self.m))
 
-		self.Coeff = np.zeros(l_max)
+		self.Coeff = np.zeros(self.l_max)
     
-		for l in np.arange (1 , l_max):
-			self.Coeff[l] = ((-1)^l)*l( gamma(l)*gamma(l+1)*(2^(2*l))) 
+		for l in np.arange (1 , self.l_max):
+			self.Coeff[l] = ((-1)**l)*l/( gamma(l)*gamma(l+1)*(2**(2*l))) 
 		self.int1()
 	
 	def int1(self):
@@ -59,9 +59,9 @@ class NNs_NonlinearPart():
 		for r in np.arange( 1, self.N_garm):
 			for s in np.arange( 1, self.m):
 				self.Integral_1[r, s] = 0
-				for k in np.arange( 1 : 2*self.steps)
+				for k in np.arange( 1 , 2*self.steps):
 					p = -pi + (pi/self.steps)*k
-					self.Integral_1[r, s] = self.Integral_1[r, s] + 1*(pi/self.steps)*self.energy_spectrum(p, s)*cos(r*p);
+					self.Integral_1[r, s] = self.Integral_1[r, s] + 1*(pi/self.steps)*self.energy_spectrum(p, s)*cos(r*p)
 				#end
 				#% Coefficients in the Fourier expansion: delta[r,s]: --------------
 				self.delta[r, s] = (1/pi)* self.Integral_1[r, s]
@@ -73,9 +73,9 @@ class NNs_NonlinearPart():
 		#% Integral_1[0,s], when r = 0: --------------------------------------------
 		for s in np.arange( 1, self.m):
 			self.Integral_1_0[s] = 0
-			for k in np.arange( 1 : 2*self.steps):
+			for k in np.arange( 1 , 2*self.steps):
 				p = -pi + (pi/self.steps)*k
-				self.Integral_1_0[s] = self.Integral_1_0[s] + 1*(pi/self.steps)*self.energy_spectrum(p, s)*cos(0*p);
+				self.Integral_1_0[s] = self.Integral_1_0[s] + 1*(pi/self.steps)*self.energy_spectrum(p, s)*cos(0*p)
 			#end
 		#end
 		#% -------------------------------------------------------------------------
@@ -89,13 +89,13 @@ class NNs_NonlinearPart():
 		for r in np.arange( 1, self.N_garm):
 			for s in np.arange( 1, self.m):
 				self.Integral_2[r, s] = 0
-				for k in np.arange( 1 : 2*self.steps)
+				for k in np.arange( 1 , 2*self.steps):
 					p = -pi + (pi/self.steps)*k
 					self.Summa_v_integralah[s] = 0
 					for r2 in np.arange( 1, self.N_garm):
 						self.Summa_v_integralah[s] = self.Summa_v_integralah[s] + (self.delta[r2, s]/(self.k_B*self.T))*cos(r2*p)
 					#end
-					self.Integral_2(r, s) = self.Integral_2(r, s) + 1*(pi/self.steps)*cos(r*p)/(1 + exp( (self.delta_0[s]/(2*self.k_B*self.T)) + self.Summa_v_integralah[s]))
+					self.Integral_2[r, s] = self.Integral_2[r, s] + 1.0*(pi/self.steps)*cos(r*p)/(1.0 + exp( (self.delta_0[s]/(2*self.k_B*self.T)) + self.Summa_v_integralah[s]))
 					
 				#end
 			#end
@@ -104,11 +104,11 @@ class NNs_NonlinearPart():
 		#% Integral_3[r,s]: --------------------------------------------------------
 		for s in np.arange( 1, self.m):
 			self.Integral_3[s] = 0
-			for k in np.arange( 1 : 2*self.steps)
+			for k in np.arange( 1 , 2*self.steps):
 				p = -pi + (pi/self.steps)*k
 				self.Summa_v_integralah[s] = 0
 				for r2 in np.arange( 1, self.N_garm):
-					self.Summa_v_integralah[s] =  self.Summa_v_integralah[s] + (self.delta_0[r2, s]/(self.k_B*self.T))*cos(r2*p);
+					self.Summa_v_integralah[s] =  self.Summa_v_integralah[s] + (self.delta[r2, s]/(self.k_B*self.T))*cos(r2*p)
 				#end
 				self.Integral_3[s] = self.Integral_3[s] + 1*(pi/self.steps)/(1 + exp( (self.delta_0[s]/(2*self.k_B*self.T)) + self.Summa_v_integralah[s] ))
 				
@@ -118,14 +118,14 @@ class NNs_NonlinearPart():
 		#% self.Summa_v_znamenatele: ----------------------------------------------------
 		self.Summa_v_znamenatele = 0
 		for s in np.arange( 1, self.m):
-			self.Summa_v_znamenatele = self.Summa_v_znamenatele + self.Integral_3[s];
+			self.Summa_v_znamenatele = self.Summa_v_znamenatele + self.Integral_3[s]
 		#end
 		#% -------------------------------------------------------------------------
 
 		#% F[r,s]: -----------------------------------------------------------------
 		for r in np.arange( 1, self.N_garm):
 			for s in np.arange( 1, self.m):
-				self.F[r, s] = -r*(self.delta[r, s]/self.gamma0)*(Integral_2(r, s)/self.Summa_v_znamenatele);
+				self.F[r, s] = -r*(self.delta[r, s]/self.gamma0)*(self.Integral_2[r, s]/self.Summa_v_znamenatele)
 			#end
 		#end
 		#% -------------------------------------------------------------------------
@@ -137,11 +137,12 @@ class NNs_NonlinearPart():
 				self.G[r] = self.G[r] + self.F[r, s]
 			#end
 		#end
+	
 	def nnl(self, inV, outV):
-		for i in np.arange (1, M):
-			for r in np.arange(1,N_garm):
-				for l in np.arange(1,N_garm):
-					outV[i] = outV[i] + self.G[r] *  r^(2*l) * inV[i]^l * Coeff[l]
+		for i in np.arange(self.M):
+			for r in np.arange(1, self.N_garm):
+				for l in np.arange(1, self.N_garm):
+					outV[i] = outV[i] + self.G[r] *  r**(2*l) * inV[i]**l * self.Coeff[l]
 class NonlinearPart():
 	def __init__(self):
 		self.times = 0
@@ -160,7 +161,8 @@ class NonlinearPart():
 		self._sumFF[:] = np.nan
 		self._A1[:] = np.nan
 		self.GG(1)
-
+	def chuck(self, inArray):
+		return np.array([self.GG(element) for element in inArray])
 	def getNNP(self, inArray, outArray):
 		#outArray = np.array([self.GG(element) for element in inArray])
 		outArray = np.array(Parallel(n_jobs=8)(delayed(self.chuck)(element) for element in np.array_split(inArray, 8))).ravel()
@@ -264,12 +266,12 @@ def Besse():
 	A_plus[M-1, 0] = 1
 	A_minus[M-1, 0] = -1
 	plt.plot(x, np.real(U0))
-	nlp = NonlinearPart()
+	nlp = NNs_NonlinearPart()
 	while nn < Nt:
 		for i in range(M):
 			V0[i] = np.abs(U0[i])**2
 			V1[i] = -V0[i] + 2 * np.abs(U0[i])**2
-		nlp.getNNP(np.copy(V1), V1)
+		nlp.nnl(np.copy(V1), V1)
 		for i in range(M):
 			alfa_plus[i] = jj/r - 2 - dx**2 * V1[i]
 			alfa_minus[i] = -jj/r - 2 - dx**2 * V1[i]
