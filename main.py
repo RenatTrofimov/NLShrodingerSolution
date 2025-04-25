@@ -7,6 +7,141 @@ from joblib import Parallel, delayed
 import multiprocessing
 import time
 
+class NNs_NonlinearPart():
+	def energy_spectrum(ksi, s):
+			return self.gamma0*sqrt(1 + 4*cos(ksi)*cos(pi*s/self.m) +4*cos(pi*s/self.m)*cos(pi*s/self.m) )
+	def __init__(self):
+		#CNT Constants and parameters:
+		self.el = -4.8e-10
+		self.h1 = 1.055e-27
+		self.k_B = 1.38e-16
+		self.gamma0 = (2.7)*1.6e-12
+		self.b_CNT = 0.142e-7
+		self.a_CNT = (3/2)*self.b_CNT
+		self.m = 7
+		self.T = 77
+		self.rel_perm=4
+		self.el_concentration=1e18
+		self.omega0=2*abs(self.el)*self.a_CNT*sqrt(pi*self.el_concentration*self.gamma0)/self.h1
+
+
+		#beam wave-vector: -------------------------------------------------------
+		self.omega=4e14 #%1e14;
+		self.kappa=2*sqrt(self.rel_perm)*self.omega/self.omega0 # wave vector
+		self.l_max=5
+		self.N_garm = 9
+		self.g=0.25
+		self.E0 = 0.10e7 #% V/cm
+		self.E0 = 1*(self.E0)/300; #% SGS(E)
+		self.A0 = self.E0*abs(self.el)*self.a_CNT/(self.h1*self.omega); 
+		self.steps = 10000
+		#Definitions of the arrays: ----------------------------------------------
+		self.Integral_1     = np.zeros((self.N_garm, self.m))
+		self.delta          = np.zeros((self.N_garm, self.m))
+		self.delta_relative = np.zeros((self.N_garm, self.m))
+		self.Integral_1_0   = np.zeros(self.m)
+		self.delta_0	  	= np.zeros(self.m)
+		self.delta_0_relative  = np.zeros(self.m)
+		self.Integral_2     = np.zeros((self.N_garm, self.m))
+		self.Summa_v_integralah = np.zeros(self.m)
+		self.Integral_3   = np.zeros(self.m)
+		self.F = np.zeros((self.N_garm, self.m))
+		self.G = np.zeros((self.N_garm, self.m))
+
+		self.Coeff = np.zeros(l_max)
+    
+		for l in np.arange (1 , l_max):
+			self.Coeff[l] = ((-1)^l)*l( gamma(l)*gamma(l+1)*(2^(2*l))) 
+		self.int1()
+	
+	def int1(self):
+		#% Integral_1[r,s]: --------------------------------------------------------
+		for r in np.arange( 1, self.N_garm):
+			for s in np.arange( 1, self.m):
+				self.Integral_1[r, s] = 0
+				for k in np.arange( 1 : 2*self.steps)
+					p = -pi + (pi/self.steps)*k
+					self.Integral_1[r, s] = self.Integral_1[r, s] + 1*(pi/self.steps)*self.energy_spectrum(p, s)*cos(r*p);
+				#end
+				#% Coefficients in the Fourier expansion: delta[r,s]: --------------
+				self.delta[r, s] = (1/pi)* self.Integral_1[r, s]
+				self.delta_relative[r,s] = self.delta[r, s]/self.gamma0
+				#% -----------------------------------------------------------------
+			#end
+		#end
+		#% -------------------------------------------------------------------------
+		#% Integral_1[0,s], when r = 0: --------------------------------------------
+		for s in np.arange( 1, self.m):
+			self.Integral_1_0[s] = 0
+			for k in np.arange( 1 : 2*self.steps):
+				p = -pi + (pi/self.steps)*k
+				self.Integral_1_0[s] = self.Integral_1_0[s] + 1*(pi/self.steps)*self.energy_spectrum(p, s)*cos(0*p);
+			#end
+		#end
+		#% -------------------------------------------------------------------------
+		#% delta[0,s], when r = 0: -------------------------------------------------
+		for s in np.arange( 1, self.m):
+			self.delta_0[s] = (1/pi)* self.Integral_1_0[s]
+			self.delta_0_relative[s] = self.delta_0[s]/self.gamma0
+		#end
+		#% -------------------------------------------------------------------------
+		#% Integral_2[r,s]: --------------------------------------------------------
+		for r in np.arange( 1, self.N_garm):
+			for s in np.arange( 1, self.m):
+				self.Integral_2[r, s] = 0
+				for k in np.arange( 1 : 2*self.steps)
+					p = -pi + (pi/self.steps)*k
+					self.Summa_v_integralah[s] = 0
+					for r2 in np.arange( 1, self.N_garm):
+						self.Summa_v_integralah[s] = self.Summa_v_integralah[s] + (self.delta[r2, s]/(self.k_B*self.T))*cos(r2*p)
+					#end
+					self.Integral_2(r, s) = self.Integral_2(r, s) + 1*(pi/self.steps)*cos(r*p)/(1 + exp( (self.delta_0[s]/(2*self.k_B*self.T)) + self.Summa_v_integralah[s]))
+					
+				#end
+			#end
+		#end
+		#% -------------------------------------------------------------------------
+		#% Integral_3[r,s]: --------------------------------------------------------
+		for s in np.arange( 1, self.m):
+			self.Integral_3[s] = 0
+			for k in np.arange( 1 : 2*self.steps)
+				p = -pi + (pi/self.steps)*k
+				self.Summa_v_integralah[s] = 0
+				for r2 in np.arange( 1, self.N_garm):
+					self.Summa_v_integralah[s] =  self.Summa_v_integralah[s] + (self.delta_0[r2, s]/(self.k_B*self.T))*cos(r2*p);
+				#end
+				self.Integral_3[s] = self.Integral_3[s] + 1*(pi/self.steps)/(1 + exp( (self.delta_0[s]/(2*self.k_B*self.T)) + self.Summa_v_integralah[s] ))
+				
+			#end
+		#end
+		#% -------------------------------------------------------------------------
+		#% self.Summa_v_znamenatele: ----------------------------------------------------
+		self.Summa_v_znamenatele = 0
+		for s in np.arange( 1, self.m):
+			self.Summa_v_znamenatele = self.Summa_v_znamenatele + self.Integral_3[s];
+		#end
+		#% -------------------------------------------------------------------------
+
+		#% F[r,s]: -----------------------------------------------------------------
+		for r in np.arange( 1, self.N_garm):
+			for s in np.arange( 1, self.m):
+				self.F[r, s] = -r*(self.delta[r, s]/self.gamma0)*(Integral_2(r, s)/self.Summa_v_znamenatele);
+			#end
+		#end
+		#% -------------------------------------------------------------------------
+
+		#% G[r]: -------------------------------------------------------------------
+		for r in np.arange( 1, self.N_garm):
+			self.G[r] = 0
+			for s in np.arange( 1, self.m):
+				self.G[r] = self.G[r] + self.F[r, s]
+			#end
+		#end
+	def nnl(self, inV, outV):
+		for i in np.arange (1, M):
+			for r in np.arange(1,N_garm):
+				for l in np.arange(1,N_garm):
+					outV[i] = outV[i] + self.G[r] *  r^(2*l) * inV[i]^l * Coeff[l]
 class NonlinearPart():
 	def __init__(self):
 		self.times = 0
