@@ -7,6 +7,181 @@ from joblib import Parallel, delayed
 import multiprocessing
 import time
 
+import numpy as np
+import matplotlib.pyplot as plt
+from math import factorial, sqrt, pi, cos, exp
+
+def Besse_CNT():
+    # Simulation parameters
+    M = 1000
+    tEnd = 2
+    xEnd = 10
+    dt = 0.001
+    dx = 2 * xEnd / M
+    r = dt / (2 * dx * dx)
+    lamda = 1
+    nn = 1
+    Nt = int(tEnd / dt)
+    jj = 1j  # imaginary unit in Python
+
+    # Physical constants
+    el = -4.8e-10
+    h1 = 1.055e-27
+    k_B = 1.38e-16  # Boltzmann constant (CGS)
+    
+    # CNT Constants and parameters
+    gamma0 = 2.7 * 1.6e-12
+    b_CNT = 0.142e-7
+    a_CNT = (3/2) * b_CNT
+    m = 7
+    T = 77  # Temperature
+    rel_perm = 4
+    el_concentration = 1e18
+    omega0 = 2 * abs(el) * a_CNT * sqrt(pi * el_concentration * gamma0) / h1
+    
+    omega = 4e14
+    kappa = 2 * sqrt(rel_perm) * omega / omega0  # wave vector
+    l_max = 5
+    
+    def energy_spectrum(ksi, s):
+        return gamma0 * sqrt(1 + 4 * cos(ksi) * cos(pi * s / m) + 4 * cos(pi * s / m)**2)
+    
+    N_garm = 9
+    g = 0.25
+    E0 = 0.10e7  # V/cm
+    E0 = 1 * (E0) / 300  # SGS(E)
+    A0 = E0 * abs(el) * a_CNT / (h1 * omega)
+    
+    Integral_1 = np.zeros((N_garm, m))
+    delta = np.zeros((N_garm, m))
+    delta_relative = np.zeros((N_garm, m))
+    Integral_1_0 = np.zeros(m)
+    delta_0 = np.zeros(m)
+    delta_0_relative = np.zeros(m)
+    Integral_2 = np.zeros((N_garm, m))
+    Summa_v_integralah = np.zeros(m)
+    Integral_3 = np.zeros(m)
+    F = np.zeros((N_garm, m))
+    G = np.zeros(N_garm)
+    
+    steps = 10000
+    
+    # Integral_1[r,s]
+    for r in range(N_garm):
+        for s in range(m):
+            Integral_1[r, s] = 0
+            for k in range(1, 2*steps + 1):
+                p = -pi + (pi/steps) * k
+                Integral_1[r, s] += 1 * (pi/steps) * energy_spectrum(p, s) * cos((r+1) * p)
+            
+            # Coefficients in the Fourier expansion: delta[r,s]
+            delta[r, s] = (1/pi) * Integral_1[r, s]
+            delta_relative[r, s] = delta[r, s] / gamma0
+    
+    # Integral_1[0,s], when r = 0
+    for s in range(m):
+        Integral_1_0[s] = 0
+        for k in range(1, 2*steps + 1):
+            p = -pi + (pi/steps) * k
+            Integral_1_0[s] += 1 * (pi/steps) * energy_spectrum(p, s) * cos(0 * p)
+        
+        delta_0[s] = (1/pi) * Integral_1_0[s]
+        delta_0_relative[s] = delta_0[s] / gamma0
+    
+    # Integral_2[r,s]
+    for r in range(N_garm):
+        for s in range(m):
+            Integral_2[r, s] = 0
+            for k in range(1, 2*steps + 1):
+                p = -pi + (pi/steps) * k
+                Summa_v_integralah[s] = 0
+                for r2 in range(N_garm):
+                    Summa_v_integralah[s] += (delta[r2, s]/(k_B*T)) * cos((r2+1)*p)
+                
+                Integral_2[r, s] += 1 * (pi/steps) * cos((r+1)*p) / (1 + exp((delta_0[s]/(2*k_B*T)) + Summa_v_integralah[s]))
+    
+    # Integral_3[r,s]
+    for s in range(m):
+        Integral_3[s] = 0
+        for k in range(1, 2*steps + 1):
+            p = -pi + (pi/steps) * k
+            Summa_v_integralah[s] = 0
+            for r2 in range(N_garm):
+                Summa_v_integralah[s] += (delta[r2, s]/(k_B*T)) * cos((r2+1)*p)
+            
+            Integral_3[s] += 1 * (pi/steps) / (1 + exp((delta_0[s]/(2*k_B*T)) + Summa_v_integralah[s]))
+    
+    # Summa_v_znamenatele
+    Summa_v_znamenatele = np.sum(Integral_3)
+    
+    # F[r,s]
+    for r in range(N_garm):
+        for s in range(m):
+            F[r, s] = - (r+1) * (delta[r, s]/gamma0) * (Integral_2[r, s]/Summa_v_znamenatele)
+    
+    # G[r]
+    for r in range(N_garm):
+        G[r] = np.sum(F[r, :])
+    
+    x = np.zeros(M)
+    Resh = np.zeros(M)
+    U0 = np.zeros(M, dtype=complex)
+    U1 = np.zeros(M, dtype=complex)
+    V0 = np.zeros(M)
+    V1 = np.zeros(M)
+    nonlin = np.zeros(M)
+    alfa_plus = np.zeros(M, dtype=complex)
+    alfa_minus = np.zeros(M, dtype=complex)
+    A_plus = np.zeros((M, M), dtype=complex)
+    A_minus = np.zeros((M, M), dtype=complex)
+    
+    for i in range(M):
+        x[i] = 0 + dx * (i+1)
+        U0[i] = A0 * exp(-(x[i] - xEnd)**2 / g)
+    
+    for i in range(1, M):
+        A_plus[i, i-1] = 1
+        A_minus[i, i-1] = -1
+    
+    for i in range(M-1):
+        A_plus[i, i+1] = 1
+        A_minus[i, i+1] = -1
+    
+    A_plus[0, M-1] = 1
+    A_minus[0, M-1] = -1
+    A_plus[M-1, 0] = 1
+    A_minus[M-1, 0] = -1
+    
+    Coeff = np.zeros(l_max)
+    for l in range(l_max):
+        Coeff[l] = ((-1)**(l+1)) * (l+1) / (factorial(l+1) * factorial(l+2) * (2**(2*(l+1))))
+    
+    while nn < Nt:
+        for i in range(M):
+            V0[i] = abs(U0[i])**2
+            V1[i] = -V0[i] + 2 * abs(U0[i])**2
+            
+            nonlin[i] = 0
+            for r in range(N_garm):
+                for l in range(l_max):
+                    nonlin[i] += G[r] * (r+1)**(2*(l+1)) * V1[i]**(l+1) * Coeff[l]
+            
+            alfa_plus[i] = 2 * kappa * jj / r - 2 - dx**2 * nonlin[i]
+            alfa_minus[i] = -2 * kappa * jj / r - 2 - dx**2 * nonlin[i]
+            A_plus[i, i] = alfa_plus[i]
+            A_minus[i, i] = -alfa_minus[i]
+        
+        B = np.dot(A_minus, U0)
+        U1 = np.linalg.solve(A_plus, B)
+        
+        U0 = U1.copy()
+        nn += 1
+    
+    plt.plot(x, abs(U1)/A0)
+    plt.show()
+
+Besse_CNT()
+
 class NNs_NonlinearPart():
 	def energy_spectrum(self, ksi, s):
 			return self.gamma0*sqrt(1 + 4*cos(ksi)*cos(pi*s/self.m) +4*cos(pi*s/self.m)*cos(pi*s/self.m) )
