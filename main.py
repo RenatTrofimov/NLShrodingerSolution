@@ -178,26 +178,74 @@ def Besse_CNT():
 	
     G = np.array([float(str(i)) for i in G ])
     # Main simulation loop
-    while nn < Nt:
-        for i in range(M):
-            V0[i] = abs(U0[i])**2
-            V1[i] = -V0[i] + 2 * abs(U0[i])**2
-            
-            nonlin[i] = 0
-            for r in range(N_garm):
-                for l in range(l_max):
-                    nonlin[i] += G[r] * (r+1)**(2*(l+1)) * V1[i]**(l+1) * Coeff[l]
-            
-            alfa_plus[i] = 2 * kappa * jj / r - 2 - dx**2 * nonlin[i]
-            alfa_minus[i] = -2 * kappa * jj / r - 2 - dx**2 * nonlin[i]
-            A_plus[i, i] = alfa_plus[i]
-            A_minus[i, i] = -alfa_minus[i]
-        print( nn )
-        B = np.dot(A_minus, U0)
-        U1 = scipy.linalg.solve(A_plus, B)
-        
-        U0 = U1.copy()
-        nn += 1
+    
+	import cupy as cp
+	gV0 = cp.array(V0)
+	gV1 = cp.array(V1)
+	gU0 = cp.array(U0)
+	gU1 = cp.array(U0)
+	gCoeff = cp.array(Coeff)
+	gNonlin = cp.array(nonlin)
+	gG = cp.array(G)
+	g_l_range = cp.array(np.arange(l_max))
+	g_alfa_plus = cp.array(alfa_plus)
+	g_alfa_minus = cp.array(alfa_minus)
+	g_A_plus = cp.array(A_plus)
+	g_A_minus = cp.array(A_minus)
+
+	def alfaP(x):
+		return 2 * kappa * 1j / r - 2 - dx**2 * x
+
+	def alfamM(x):
+		return -2 * kappa * 1j / r - 2 - dx**2 * x
+
+	vectAlphaP = cp.vectorize(alfaP)
+	vectAlphaM = cp.vectorize(alfaM)
+
+
+	
+	
+
+	while nn < Nt:
+		gV0 = cp.abs(gU0)**2
+		gV1 = -gV0 + 2 * cp.abs(gU0)**2
+
+		for i in range(M):
+			gNonlin[i] = 0
+			for r in range(N_garm):
+					gNonlin[i] = cp.sum(gG[r] * (r+1)**(2*(g_l_range+1)) * gV1[i]**(g_l_range+1) * Coeff)
+
+
+		g_alfa_plus = vectAlphaP(gNonlin)
+		g_alfa_minus = vectAlphaM(gNonlin)
+
+		g_A_minus = -cp.diagflat(g_alfa_minus)
+		g_A_plus = cp.diagflat(g_alfa_plus)
+		
+
+		gB = cp.linalg.dot(g_A_minus, gU0)
+		gU1 = cp.linalg.solve(g_A_plus, gB)
+
+		gV0 = cp.abs(gU1)**2
+		gV1 = -gV0 + 2 * cp.abs(gU1)**2
+
+		for i in range(M):
+			gNonlin[i] = 0
+			for r in range(N_garm):
+					gNonlin[i] = cp.sum(gG[r] * (r+1)**(2*(g_l_range+1)) * gV1[i]**(g_l_range+1) * Coeff)
+
+
+		g_alfa_plus = vectAlphaP(gNonlin)
+		g_alfa_minus = vectAlphaM(gNonlin)
+
+		g_A_minus = -cp.diagflat(g_alfa_minus)
+		g_A_plus = cp.diagflat(g_alfa_plus)
+		
+
+		gB = cp.linalg.dot(g_A_minus, gU1)
+		gU0 = cp.linalg.solve(g_A_plus, gB)
+		
+		nn += 1
     
     # Convert results to float for plotting
     plt.plot(x, abs(U1)/A0)
