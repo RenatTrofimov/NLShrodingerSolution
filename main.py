@@ -12,11 +12,35 @@ import matplotlib.pyplot as plt
 from math import factorial, sqrt, pi, cos, exp
 
 import pdb
-
+import cupy as cp
 import mpmath
 import numpy as np
 import matplotlib.pyplot as plt
 from math import factorial, pi, cos
+import cupyx
+def custom_factorial(n):
+    return cp.exp(cupyx.scipy.special.gammaln(n + 1))
+
+def alfaP(x, kappa, r, dx):
+	return 2 * kappa * 1j / r - 2 - dx**2 * x
+
+def alfaM(x, kappa, r, dx):
+	return -2 * kappa * 1j / r - 2 - dx**2 * x
+
+def log_gamma_approx(n):
+	# Аппроксимация логарифма гамма-функции (формула Стирлинга)
+	return (n - 0.5) * cp.log(n) - n + 0.5 * cp.log(2 * cp.pi)
+
+def nlp(x, G, r, l):
+	# Вычисление аппроксимации gammaln
+	gammaln_l2 = log_gamma_approx(l + 2)
+	gammaln_l3 = log_gamma_approx(l + 3)
+	
+	return cp.sum(
+		G * (r + 1) ** (2 * (l + 1)) *
+		x ** (l + 1) * ((-1) ** (l + 1)) * (l + 1) /
+		(cp.exp(gammaln_l2) * cp.exp(gammaln_l3) * (2 ** (2 * (l + 1))))
+	)
 
 def Besse_CNT():
 	# Инициализация mpmath с высокой точностью
@@ -27,7 +51,7 @@ def Besse_CNT():
 		return mpmath.mpf(str(x))
 	
 	# Simulation parameters
-	M = 2000
+	M = 4000
 	tEnd = mpf(2)
 	xEnd = mpf(20)
 	dt = mpf('0.001')
@@ -179,7 +203,7 @@ def Besse_CNT():
 	G = np.array([float(str(i)) for i in G ])
 	# Main simulation loop
 	
-	import cupy as cp
+
 	gV0 = cp.array(V0)
 	gV1 = cp.array(V1)
 	gU0 = cp.array(U0)
@@ -195,45 +219,42 @@ def Besse_CNT():
 	g_alfa_minus = cp.array(alfa_minus)
 	g_A_plus = cp.array(A_plus)
 	g_A_minus = cp.array(A_minus)
-
-	def alfaP(x):
-		return 2 * kappa * 1j / r - 2 - dx**2 * x
-
-	def alfaM(x):
-		return -2 * kappa * 1j / r - 2 - dx**2 * x
+	kappa, r, dx = float(str(kappa)), float(str(kappa)), float(str(kappa))
 
 	vectAlphaP = cp.vectorize(alfaP)
 	vectAlphaM = cp.vectorize(alfaM)
-	#vectnlp = cp.vectorize(nlp)
+	vectnlp = cp.vectorize(nlp)
 
 	while nn < Nt:
 		gV0 = cp.abs(gU0)**2
 		gV1 = -gV0 + 2 * cp.abs(gU0)**2
-		for i in range(M):
-			gV1[i] = cp.sum(gGrl[:,0] * (gGrl[:,1]+1)**(2*(gGrl[:,2]+1)) * gV1[i] **(gGrl[:,2]+1) * ((-1)**(gGrl[:,2]+1))*(gGrl[:,2]+1)/(scipy.special.factorial(gGrl[:,2]+1)*scipy.special.factorial(gGrl[:,2]+2)*(2**(2*(gGrl[:,2]+1)))))
+		#gV1 = vectnlp(gV1, gGrl[:,0], gGrl[:,1], gGrl[:,2])
+		
+		#for i in range(M):
+			#gV1[i] = cp.sum(gGrl[:,0] * (gGrl[:,1]+1)**(2*(gGrl[:,2]+1)) * gV1[i] **(gGrl[:,2]+1) * ((-1)**(gGrl[:,2]+1))*(gGrl[:,2]+1)/(scipy.special.factorial(gGrl[:,2]+1)*scipy.special.factorial(gGrl[:,2]+2)*(2**(2*(gGrl[:,2]+1)))))
 
-		g_alfa_plus = vectAlphaP(gV1)
-		g_alfa_minus = vectAlphaM(gV1)
+		g_alfa_plus = vectAlphaP(gV1, kappa, r, dx)
+		g_alfa_minus = vectAlphaM(gV1, kappa, r, dx)
 
 		g_A_minus = -cp.diagflat(g_alfa_minus)
 		g_A_plus = cp.diagflat(g_alfa_plus)
 
-		gB = cp.linalg.dot(g_A_minus, gU0)
+		gB = cp.dot(g_A_minus, gU0)
 		gU1 = cp.linalg.solve(g_A_plus, gB)
 
 		gV0 = cp.abs(gU1)**2
 		gV1 = -gV0 + 2 * cp.abs(gU1)**2
 
-		gNonlin = vectNnlprt(gV1)
-		g_alfa_plus = vectAlphaP(gNonlin)
-		g_alfa_minus = vectAlphaM(gNonlin)
+		#gNonlin = vectNnlprt(gV1)
+		g_alfa_plus = vectAlphaP(gV1, kappa, r, dx)
+		g_alfa_minus = vectAlphaM(gV1, kappa, r, dx)
 
 		g_A_minus = -cp.diagflat(g_alfa_minus)
 		g_A_plus = cp.diagflat(g_alfa_plus)
 
-		gB = cp.linalg.dot(g_A_minus, gU1)
+		gB = cp.dot(g_A_minus, gU1)
 		gU0 = cp.linalg.solve(g_A_plus, gB)
-		
+		print(nn)
 		nn += 1
 	
 	# Convert results to float for plotting
