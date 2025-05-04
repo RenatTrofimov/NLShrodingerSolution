@@ -51,7 +51,7 @@ def Besse_CNT():
 		return mpmath.mpf(str(x))
 	
 	# Simulation parameters
-	M = 1000
+	M = 10
 	tEnd = mpf(2)
 	xEnd = mpf(20)
 	dt = mpf('0.001')
@@ -106,7 +106,7 @@ def Besse_CNT():
 	F = mpmath.matrix(N_garm, m)
 	G = mpmath.matrix(N_garm, 1)
 	
-	steps = 1
+	steps = 100
 	
 	# Integral calculations with mpmath
 	for r in range(N_garm):
@@ -202,44 +202,44 @@ def Besse_CNT():
 	
 	G = np.array([float(str(i)) for i in G ])
 	# Main simulation loop
-	gV1 = cp.array(V1).astype(cp.complex64)
-	gU0 = cp.array(U0).astype(cp.complex64)
-	gU1 = cp.array(U0).astype(cp.complex64)
-	gCoeff = cp.array(Coeff)
+	gV1 = cp.array(V1).astype(cp.complex128)
+	gU0 = cp.array(U0).astype(cp.complex128)
+	gU1 = cp.array(U0).astype(cp.complex128)
+	gCoeff = cp.array(Coeff).astype(cp.double)
+	print(Coeff)
+	print(gCoeff)
 	gG = cp.array(G)
-	gA_plus = cp.array(A_plus).astype(cp.complex64)
-	gA_minus = cp.array(A_minus).astype(cp.complex64)
+	gA_plus = cp.array(A_plus).astype(cp.complex128)
+	gA_minus = cp.array(A_minus).astype(cp.complex128)
 	kernel_code = r'''
 	#include <cupy/complex.cuh>
 
 	extern "C" __global__
 	void complex_multiply(
-		const complex<float>* V1,
-		const float* Coeff,
-		const float* G,
-		complex<float>* A_plus,
-		complex<float>* A_minus,
-		const float dx,
-		const float kappa,
-		const float _r,
+		const complex<double>* V1,
+		const double* Coeff,
+		const double* G,
+		complex<double>* A_plus,
+		complex<double>* A_minus,
+		const double dx,
+		const double kappa,
+		const double _r,
 		const int N_garm,
 		const int l_max,
 		const int n
 	) {
 		int idx = min(blockIdx.x * blockDim.x + threadIdx.x, n - 1);
-		
 		complex<float> a_plus_val(0.0f, 0.0f);
-		
 		for(int r = 0; r < N_garm; r++) {
 			for(int l = 0; l < l_max; l++) {
 				float temp1 = powf((float)(r + 1), (float)(2 * (l + 1)));
 				
-				complex<float> temp2(1.0f, 0.0f);
-				for(int p = 0; p < (2 * (l + 1)); p++) {
+				complex<float> temp2(1.0, 0.0);
+				for(int p = 1; p < (2 * (l + 1)); p++) {
 					temp2 *= V1[idx];
 				}
 				
-				a_plus_val += G[r] * temp1 * temp2 * Coeff[l];
+				a_plus_val += complex<float>(G[r] * Coeff[l], 0.0f) * temp1 * temp2 ;
 			}
 		}
 		
@@ -258,28 +258,28 @@ def Besse_CNT():
 	import cupyx.scipy.sparse as cusp
 	while nn < Nt:
 		gV1 = cp.absolute(gU0)**2
+		
 		complex_mult_kernel(
 			(blocks_per_grid,), 
 			(threads_per_block,), 
 			(gV1, gCoeff, gG, gA_plus, gA_minus, float(str(dx)), float(str(kappa)), float(str(r)), N_garm, l_max, M)
 		)
-		print( nn )
-		gU0 = cp.dot(gA_minus, gU0)
-		#gU1 = cupyx.scipy.sparse(gA_plus, gU0)
-		gU1 = spsolve(cusp.csr_matrix(gA_plus), gU0) 
+		print(cusp.csr_matrix(gA_plus))
+		gU1 = spsolve(cusp.csr_matrix(gA_plus), cp.dot(gA_minus, gU0)) 
 		gV1 = cp.absolute(gU1)**2
 		complex_mult_kernel(
 			(blocks_per_grid,), 
 			(threads_per_block,), 
 			(gV1, gCoeff, gG, gA_plus, gA_minus, float(str(dx)), float(str(kappa)), float(str(r)), N_garm, l_max, M)
 		)
-		gU1 = cp.dot(gA_minus, gU1)
-		#gU0 = cp.linalg.solve(gA_plus, gU1)
-		gU0 = spsolve(cusp.csr_matrix(gA_plus), gU1)
+
+		gU0 = spsolve(cusp.csr_matrix(gA_plus), cp.dot(gA_minus, gU1)) 
+		
 		nn += 1
+		print( nn )
 	
 	# Convert results to float for plotting
-	plt.plot(x, abs(cp.asarray(gU1))/A0)
+	plt.plot(x, abs(cp.asarray(gU1)[0])/A0)
 	plt.show()
 
 Besse_CNT()
