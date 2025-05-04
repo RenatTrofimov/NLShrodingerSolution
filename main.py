@@ -10,7 +10,7 @@ import scipy
 import numpy as np
 import matplotlib.pyplot as plt
 from math import factorial, sqrt, pi, cos, exp
-
+import cupy as cp
 import pdb
 import cupy as cp
 import mpmath
@@ -51,7 +51,7 @@ def Besse_CNT():
 		return mpmath.mpf(str(x))
 	
 	# Simulation parameters
-	M = 4000
+	M = 1000
 	tEnd = mpf(2)
 	xEnd = mpf(20)
 	dt = mpf('0.001')
@@ -106,7 +106,7 @@ def Besse_CNT():
 	F = mpmath.matrix(N_garm, m)
 	G = mpmath.matrix(N_garm, 1)
 	
-	steps = 10
+	steps = 1
 	
 	# Integral calculations with mpmath
 	for r in range(N_garm):
@@ -202,63 +202,84 @@ def Besse_CNT():
 	
 	G = np.array([float(str(i)) for i in G ])
 	# Main simulation loop
-	
-
-	gV0 = cp.array(V0)
-	gV1 = cp.array(V1)
-	gU0 = cp.array(U0)
-	gU1 = cp.array(U0)
-	duplicated_pairs = np.repeat(np.column_stack((G, np.arange(N_garm))), l_max, axis=0)
-	gGrl = np.column_stack((duplicated_pairs, np.tile(np.arange(l_max), N_garm)))
-	gGrl = cp.array(gGrl)
+	gV1 = cp.array(V1).astype(cp.complex64)
+	gU0 = cp.array(U0).astype(cp.complex64)
+	gU1 = cp.array(U0).astype(cp.complex64)
 	gCoeff = cp.array(Coeff)
-	gNonlin = cp.array(V1)
 	gG = cp.array(G)
-	g_l_range = cp.array(np.arange(l_max))
-	g_alfa_plus = cp.array(alfa_plus)
-	g_alfa_minus = cp.array(alfa_minus)
-	g_A_plus = cp.array(A_plus)
-	g_A_minus = cp.array(A_minus)
-	kappa, r, dx = float(str(kappa)), float(str(kappa)), float(str(kappa))
+	gA_plus = cp.array(A_plus).astype(cp.complex64)
+	gA_minus = cp.array(A_minus).astype(cp.complex64)
+	kernel_code = r'''
+	#include <cupy/complex.cuh>
 
-	vectAlphaP = cp.vectorize(alfaP)
-	vectAlphaM = cp.vectorize(alfaM)
-	vectnlp = cp.vectorize(nlp)
-
-	while nn < Nt:
-		gV0 = cp.abs(gU0)**2
-		gV1 = -gV0 + 2 * cp.abs(gU0)**2
-		#gV1 = vectnlp(gV1, gGrl[:,0], gGrl[:,1], gGrl[:,2])
+	extern "C" __global__
+	void complex_multiply(
+		const complex<float>* V1,
+		const float* Coeff,
+		const float* G,
+		complex<float>* A_plus,
+		complex<float>* A_minus,
+		const float dx,
+		const float kappa,
+		const float _r,
+		const int N_garm,
+		const int l_max,
+		const int n
+	) {
+		int idx = min(blockIdx.x * blockDim.x + threadIdx.x, n - 1);
 		
-		#for i in range(M):
-			#gV1[i] = cp.sum(gGrl[:,0] * (gGrl[:,1]+1)**(2*(gGrl[:,2]+1)) * gV1[i] **(gGrl[:,2]+1) * ((-1)**(gGrl[:,2]+1))*(gGrl[:,2]+1)/(scipy.special.factorial(gGrl[:,2]+1)*scipy.special.factorial(gGrl[:,2]+2)*(2**(2*(gGrl[:,2]+1)))))
+		complex<float> a_plus_val(0.0f, 0.0f);
+		
+		for(int r = 0; r < N_garm; r++) {
+			for(int l = 0; l < l_max; l++) {
+				float temp1 = powf((float)(r + 1), (float)(2 * (l + 1)));
+				
+				complex<float> temp2(1.0f, 0.0f);
+				for(int p = 0; p < (2 * (l + 1)); p++) {
+					temp2 *= V1[idx];
+				}
+				
+				a_plus_val += G[r] * temp1 * temp2 * Coeff[l];
+			}
+		}
+		
+		float dx_sq = dx * dx;
+		complex<float> kappa_term(0.0f, 2.0f * kappa / _r);
+		
+		A_plus[idx * n + idx] = kappa_term - complex<float>(2.0f, 0.0f) - complex<float>(dx_sq, 0.0f) * a_plus_val;
+		A_minus[idx * n + idx] = -1.0f * (-kappa_term - complex<float>(2.0f, 0.0f) - complex<float>(dx_sq, 0.0f) * a_plus_val);
+	}
+	'''
+	complex_mult_kernel = cp.RawKernel(kernel_code, 'complex_multiply')
 
-		g_alfa_plus = vectAlphaP(gV1, kappa, r, dx)
-		g_alfa_minus = vectAlphaM(gV1, kappa, r, dx)
-
-		g_A_minus = -cp.diagflat(g_alfa_minus)
-		g_A_plus = cp.diagflat(g_alfa_plus)
-
-		gB = cp.dot(g_A_minus, gU0)
-		gU1 = cp.linalg.solve(g_A_plus, gB)
-
-		gV0 = cp.abs(gU1)**2
-		gV1 = -gV0 + 2 * cp.abs(gU1)**2
-
-		#gNonlin = vectNnlprt(gV1)
-		g_alfa_plus = vectAlphaP(gV1, kappa, r, dx)
-		g_alfa_minus = vectAlphaM(gV1, kappa, r, dx)
-
-		g_A_minus = -cp.diagflat(g_alfa_minus)
-		g_A_plus = cp.diagflat(g_alfa_plus)
-
-		gB = cp.dot(g_A_minus, gU1)
-		gU0 = cp.linalg.solve(g_A_plus, gB)
-		print(nn)
+	threads_per_block = 256
+	blocks_per_grid = (M + threads_per_block - 1) // threads_per_block
+	from cupyx.scipy.sparse.linalg import spsolve
+	import cupyx.scipy.sparse as cusp
+	while nn < Nt:
+		gV1 = cp.absolute(gU0)**2
+		complex_mult_kernel(
+			(blocks_per_grid,), 
+			(threads_per_block,), 
+			(gV1, gCoeff, gG, gA_plus, gA_minus, float(str(dx)), float(str(kappa)), float(str(r)), N_garm, l_max, M)
+		)
+		print( nn )
+		gU0 = cp.dot(gA_minus, gU0)
+		#gU1 = cupyx.scipy.sparse(gA_plus, gU0)
+		gU1 = spsolve(cusp.csr_matrix(gA_plus), gU0) 
+		gV1 = cp.absolute(gU1)**2
+		complex_mult_kernel(
+			(blocks_per_grid,), 
+			(threads_per_block,), 
+			(gV1, gCoeff, gG, gA_plus, gA_minus, float(str(dx)), float(str(kappa)), float(str(r)), N_garm, l_max, M)
+		)
+		gU1 = cp.dot(gA_minus, gU1)
+		#gU0 = cp.linalg.solve(gA_plus, gU1)
+		gU0 = spsolve(cusp.csr_matrix(gA_plus), gU1)
 		nn += 1
 	
 	# Convert results to float for plotting
-	plt.plot(x, abs(U1)/A0)
+	plt.plot(x, abs(cp.asarray(gU1))/A0)
 	plt.show()
 
 Besse_CNT()
