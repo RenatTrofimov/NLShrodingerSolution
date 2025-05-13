@@ -200,13 +200,13 @@ def Besse_CNT():
 		U1 = scipy.sparse.linalg.spsolve(scipy.sparse.csr_matrix(A_plus), B)
 		U0 = U1.copy()
 		nn += 1
-		np.save(f"D:/A = 0/{dt*nn}.npy", U0 )
+		np.save(f"130525/{dt*nn}.npy", U0 )
 		if not nn%625:
 			plt.plot(x, abs(U1)/A0)
 	
 	# Convert results to float for plotting
 	plt.plot(x, abs(U1)/A0)
-	#np.save(f"D:/A = 0/{dt*nn}.npy", U0 )
+	np.save(f"130525/{dt*nn}.npy", U0 )
 	plt.show()
 
 Besse_CNT()
