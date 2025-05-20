@@ -4,7 +4,7 @@ from scipy.sparse import diags, eye
 from scipy.sparse.linalg import inv
 
 import pdb
-
+import math
 import mpmath
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,7 +12,7 @@ from math import factorial, pi, cos, exp
 import scipy
 def Besse_CNT():
 	# Инициализация mpmath с высокой точностью
-	mpmath.mp.dps = 10  # Количество значащих цифр
+	mpmath.mp.dps = 20  # Количество значащих цифр
 	
 	# Конвертация констант в mpmath формате
 	def mpf(x):
@@ -57,10 +57,10 @@ def Besse_CNT():
 	
 	N_garm = 9
 	g = mpf('0.25')
-	E0 = mpf('10e6')  # V/cm
+	E0 = mpf('1e6')  # V/cm
 	E0 = mpf(1)*(E0)/mpf(300)
 	A0 = E0*mpmath.fabs(el)*a_CNT/(h1*omega)
-	print(A0)
+	print(kappa)
 	# Initialize arrays
 	Integral_1 = mpmath.matrix(N_garm, m)
 	delta = mpmath.matrix(N_garm, m)
@@ -74,7 +74,11 @@ def Besse_CNT():
 	F = mpmath.matrix(N_garm, m)
 	G = mpmath.matrix(N_garm, 1)
 	
-	steps = 1000
+	print(omega0)
+	print(A0)
+
+
+	steps = 500
 	
 	# Integral calculations with mpmath
 	for r in range(N_garm):
@@ -148,8 +152,9 @@ def Besse_CNT():
 	# Initial conditions
 	for i in range(M):
 		x[i] = 0 + dx * (i+1)
+		
 		U0[i] = A0 * exp(-(x[i] - xEnd)**2 / g)
-	
+	np.save(f"130525/{0}.npy", U0 )
 	# Setup A_plus and A_minus matrices
 	for i in range(1, M):
 		A_plus[i, i-1] = 1
@@ -166,41 +171,39 @@ def Besse_CNT():
 	
 	# Coefficients for nonlinear term
 	Coeff = [mpf(0) for _ in range(l_max)]
-	for l in range(l_max):
-		Coeff[l] = ((-1)**(l+1))*(l+1)/(mpmath.factorial(l+1)*mpmath.factorial(l+2)*(2**(2*(l+1))))
+	for s in range(l_max):
+		Coeff[s] = ((-1)**(s+1))/(mpmath.factorial(s+1)*mpmath.factorial(s+2)*(2**(2*(s+1))))
 	Coeff = np.array([float(str(i)) for i in Coeff ])
-	
 	G = np.array([float(str(i)) for i in G ])
 	A_shtr = 0.1
-	G1 = np.array([G[r] * np.cos((r + 1) * A_shtr) for r in np.arange(G.shape[0])])
-	G2 = np.array([G[r] * np.sin((r + 1) * A_shtr) for r in np.arange(G.shape[0])])
-	
-	II = np.eye(M, dtype=complex)
+	G1 = np.array([float(str(mpf(G[r]) * mpmath.cos((r + 1) * mpf(A_shtr)))) for r in np.arange(G.shape[0])])
+	G2 = np.array([float(str(mpf(G[r]) * mpmath.sin((r + 1) * mpf(A_shtr)))) for r in np.arange(G.shape[0])])
 	# Main simulation loop
+	
+	V0 = np.absolute(U0)**2
+
 	while nn < Nt:
-		
 		for i in range(M):
-			V0[i] = abs(U0[i])**2
-			V1[i] = -V0[i] + 2 * abs(U0[i])**2
-			
+			V1[i] = -V0[i] + 2 * np.absolute(U0[i])**2
 			nonlin[i] = 0
 			nonlin2[i] = 0
 			for r in range(N_garm):
 				for l in range(l_max):
-					nonlin[i] += G1[r] * (r)**(2*l+1) * V1[i]**(l) * Coeff[l]
-					nonlin2[i] +=  G2[r] * r**(2*l) * V1[i]**(l) * Coeff[l]*((l+1)-r**2*V1[i]/2/(l+2))
-			r = dt/(mpf(2)*dx**2)
-			alfa_plus[i] = 2 * kappa * jj / r - 2 - dx**2 * nonlin[i]
-			alfa_minus[i] = -2 * kappa * jj / r - 2 - dx**2 * nonlin[i]
+					nonlin[i] += G1[r] * (r+1)**(2*(l+1)+1) * V1[i]**(l+1) * Coeff[l]
+					nonlin2[i] +=  G2[r] * (r+1)**(2*(l+1)) * V1[i]**(l+1) * Coeff[l]*((l+2)-(r+1)**2*V1[i]/(2*(l+3)))
+			r1 = dt/(2.0*dx**2)
+			alfa_plus[i] = 2 * kappa * jj / r1 - 2 - dx**2 * nonlin[i]
+			alfa_minus[i] = -2 * kappa * jj / r1 - 2 - dx**2 * nonlin[i]
 			A_plus[i, i] = alfa_plus[i]
 			A_minus[i, i] = -alfa_minus[i]
-			II[i,i] = 2*dx*dx*nonlin2[i]
 		print( nn )
 		B = np.dot(A_minus, U0) + float(str(2*dx*dx))*nonlin2
 		U1 = scipy.sparse.linalg.spsolve(scipy.sparse.csr_matrix(A_plus), B)
 		U0 = U1.copy()
+		V0 = V1.copy()
 		nn += 1
-		np.save(f"130525/{dt*nn}.npy", U0 )
+		np.savetxt(f"200525/nnl.txt", nonlin2 )
+		return
 		if not nn%625:
 			plt.plot(x, abs(U1)/A0)
 	
